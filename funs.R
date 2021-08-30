@@ -123,7 +123,7 @@ get_MSE_tab <- function(RR,
 ##' iterate over rel risk values
 ##' @param RRvals vector of relative-risk values
 get_all_MSEtab <- function(RRvals=c(1,1.5,2,3),...) {
-    x1 <- suppressMessages(purrr::map(RRvals,get_MSE_tab,...)
+    x1 <- suppressMessages(purrr::map(RRvals, get_MSE_tab,...)
         %>% setNames(RRvals)
         %>% bind_rows(.id="RR")
     )

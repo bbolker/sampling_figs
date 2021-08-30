@@ -24,26 +24,29 @@ library(tidyverse)
 theme_set(theme_bw())
 library(directlabels)
 source("funs.R")
-load("lancet_final.rda")
+load("figs_dat.rda")
+## prefix <- "lancet_final_fig_"
+## system("rm lancet_final_fig_*.pdf")
+## exclude_methods <- c("EPI3","Grid")
+prefix <- "newfigs"
 
-system("rm lancet_final_fig_*.pdf")
+# Figure 1: RMSE vs sample size
 
-## Figure 1: RMSE vs sample size
-exclude_method <- c("EPI3","Grid")
 data <- all_MSE
 plot_size <- list(width=7,height=5)
 for (resp in c("Prevalence", "RR")) {
-        for (focal_RR in unique(data$RR)) {
-            for (do_resample in c(TRUE,FALSE)) {
-                resamp_str <- if (do_resample) "resample" else "no_resample"
-                fn <- sprintf("lancet_final_fig_SUPP_1_%s_RR%1.1f_%s.pdf",resp,focal_RR,resamp_str)
-
+    for (focal_RR in unique(data$RR)) {
+        for (do_resample in c(TRUE,FALSE)) {
+            resamp_str <- if (do_resample) "resample" else "no_resample"
+            fn <- sprintf("%s_SUPP_1_%s_RR%1.1f_%s.pdf",prefix,resp,focal_RR,resamp_str)
                 cat(fn,"\n")
-
                 plot_data <- filter(data,response==resp,RR==focal_RR,
-                                    resample==do_resample,
-                                    !method %in% exclude_method)
-                
+                                    resample==do_resample)
+                if (exists("exclude_methods")) {
+                    plot_data <- filter(plot_data, !method %in% exclude_methods)
+                } else if (exists("include_methods")) {
+                    plot_data <- filter(plot_data, method %in% include_methods)
+                }
                 g1 <- (ggplot(plot_data,aes(n,mean,colour=method))
                     + geom_point()
                     + geom_line()
@@ -58,14 +61,13 @@ for (resp in c("Prevalence", "RR")) {
                     + expand_limits(x=32)
                     + ggtitle(sprintf("%s: RR=%1.1f",resp,focal_RR))
                 )
-
                 with(plot_size,ggsave(plot=g1,filename=fn,width=width,height=height))
             } ## do_resample
         } ## focal_RR
 } ## resp
 
 
-exclude_methods <- c("EPI3","Grid")
+## exclude_methods <- c("EPI3","Grid")
 plot_size <- list(width=10,height=8)
 exp_lim <- 0
 minval <- NA
@@ -82,7 +84,9 @@ mlevs <- c("Random","Square","Grid","Peri","Quad","OldEPI","NewEPI","EPI3","EPI5
 names(col_vec) <- mlevs
 names(shape_vec) <- mlevs
 
-mlevs <- setdiff(mlevs,exclude_methods)
+if (exists("exclude_methods")) {
+    mlevs <- setdiff(mlevs,exclude_methods)
+}
 col_vec <- col_vec[mlevs]
 shape_vec <- shape_vec[mlevs]
 lty_vec <- c("solid","11")[1+as.numeric(grepl("epi",mlevs,ignore.case=TRUE))]
@@ -95,7 +99,7 @@ for (focal_n in unique(gg$n)) {
                 focal_var <- NULL
                 nval <- as.integer(as.character(focal_n))
                 resamp_str <- if (focal_resamp) "resample" else "no_resample"
-                fn <- sprintf("lancet_final_fig_SUPP_2_n%d_%s_%s_RR%1.1f.pdf",nval,resamp_str,response,focal_RR)
+                fn <- sprintf("%S_SUPP_2_n%d_%s_%s_RR%1.1f.pdf",prefix,nval,resamp_str,response,focal_RR)
                 ## COMMENT ME OUT!
                 ## focal_n <- 7; focal_RR <- 1; focal_resamp <- TRUE; response <- "prev"
                 ## focal_var <- "p_ratio"
@@ -139,7 +143,7 @@ blowup_fn <- "lancet_final_fig_2_n30_no_resample_rr_RR3.0.pdf"
 ## new figure 1
 
 ### 
-exclude_method <- c("EPI3","Grid")
+## exclude_methods <- c("EPI3","Grid")
 data <- all_MSE
 plot_size <- list(width=7,height=5)
 focal_RR <- 1.0
@@ -147,8 +151,13 @@ do_resample <- FALSE
 plot_data <- filter(data,
                     ## response==resp,
                     RR==focal_RR,
-                    resample==do_resample,
-                    !method %in% exclude_method) %>%
+                    resample==do_resample)
+if (exists("exclude_methods")) {
+    plot_data <- filter(plot_data, !method %in% exclude_methods)
+} else if (exists("include_methods")) {
+    plot_data <- filter(plot_data, method %in% include_methods)
+}
+plot_data <- plot_data %>%
     mutate_at("response",
               ~factor(.,
                       levels=c("Prevalence","RR"),
