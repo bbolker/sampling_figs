@@ -48,13 +48,25 @@ gg2 <- (gg
     %>% filter(!grepl("vanilla", population),   ## exclude vanilla pops: only non-resampled results
                !resamp)
     %>% select(RR, method, n, true_mean, mean, population)  ## choose variables to keep
+)
+
+## taking ratios first doesn't really make sense, but just trying it out ...
+gg2A <- gg2 %>% filter(method != "Random") %>% mutate(err = mean - true_mean) %>% select(-c(true_mean, mean))
+gg2B <- gg2 %>% filter(method == "Random") %>% mutate(rand_err = mean - true_mean) %>% select(-c(true_mean, mean, method))
+gg3 <- full_join(gg2A, gg2B, by = c("RR", "n", "population")) %>%
+    group_by(RR,method,n) %>%
+    summarise(mse = mean((err/rand_err)^2, na.rm= TRUE), .groups = "drop")
+
+
+
+gg4 <- (gg2
     %>% group_by(RR, n, method)
     ## -> 3000 rows (RR(4) x n(3) x method(5) x population(50)
-    %>% summarise(mse = mean((mean-true_mean)^2), .groups = "drop_last") ## compute MSE across populations
+    %>% summarise(mse = mean((mean-true_mean)^2, na.rm=TRUE), .groups = "drop_last") ## compute MSE across populations
     %>% mutate(mse_ratio = mse/mse[method=="Random"])
     %>% filter(method != "Random")
 )
-gg2 %>% filter(RR==1, n== 7)
+gg4 %>% filter(RR==1, n== 7)
 
 
 gg0 <- gg %>% filter(RR==1) %>%
