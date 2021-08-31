@@ -24,15 +24,17 @@ library(tidyverse)
 theme_set(theme_bw())
 library(directlabels)
 source("funs.R")
-load("figs_dat.rda")
+L <- load("figs_dat.rda")
 ## prefix <- "lancet_final_fig_"
 ## system("rm lancet_final_fig_*.pdf")
 ## exclude_methods <- c("EPI3","Grid")
-prefix <- "newfigs"
+prefix <- "intjepi"
+figpath <- "figs"
 
 # Figure 1: RMSE vs sample size
 
-data <- all_MSE
+data <- gg_sum %>% mutate(across(n, ~as.integer(as.character(.))))
+
 plot_size <- list(width=7,height=5)
 for (resp in c("Prevalence", "RR")) {
     for (focal_RR in unique(data$RR)) {
@@ -40,17 +42,17 @@ for (resp in c("Prevalence", "RR")) {
             resamp_str <- if (do_resample) "resample" else "no_resample"
             fn <- sprintf("%s_SUPP_1_%s_RR%1.1f_%s.pdf",prefix,resp,focal_RR,resamp_str)
                 cat(fn,"\n")
-                plot_data <- filter(data,response==resp,RR==focal_RR,
-                                    resample==do_resample)
+                plot_data <- filter(data, response==resp, RR==focal_RR,
+                                    resamp==do_resample)
                 if (exists("exclude_methods")) {
                     plot_data <- filter(plot_data, !method %in% exclude_methods)
                 } else if (exists("include_methods")) {
                     plot_data <- filter(plot_data, method %in% include_methods)
                 }
-                g1 <- (ggplot(plot_data,aes(n,mean,colour=method))
+                g1 <- (ggplot(plot_data,aes(n, mean, colour=method))
                     + geom_point()
                     + geom_line()
-                    + geom_ribbon(aes(ymin=ymin,ymax=ymax,fill=method),
+                    + geom_ribbon(aes(ymin=mean-stderr,ymax=mean+stderr,fill=method),
                                   colour=NA,alpha=0.1)
                     + scale_x_continuous(breaks=unique(plot_data$n))
                     + scale_y_log10()
@@ -61,7 +63,7 @@ for (resp in c("Prevalence", "RR")) {
                     + expand_limits(x=32)
                     + ggtitle(sprintf("%s: RR=%1.1f",resp,focal_RR))
                 )
-                with(plot_size,ggsave(plot=g1,filename=fn,width=width,height=height))
+                with(plot_size, ggsave(plot=g1, filename=fn, path=figpath, width=width, height=height))
             } ## do_resample
         } ## focal_RR
 } ## resp
@@ -75,12 +77,20 @@ point_alpha <- 0.05
 legend_pos <- c(0.65,0.15)
 use_ribbons <- FALSE
 do_shape <- FALSE
-iwh_vec <- c("#c77533","#8a66d3","#86a83c","#c85998","#60a16c","#897bbf","#c8615d","#49afcf")
+## shape_vec <- c(3,  ## random
+##                16:19, ## non-EPI
+##                21:24) ## EPI
+## mlevs <- c("Random","Square","Grid","Peri","Quad","OldEPI","NewEPI","EPI3","EPI5")
+## iwh_vec <- c("#c77533","#8a66d3","#86a83c","#c85998","#60a16c","#897bbf","#c8615d","#49afcf")
+
+## colours are (random = black + evenly spaced)
+shape_vec <- c(3, ## random
+               16:17, ## non-EPI
+               21:22 ## EPI
+               )
+mlevs <- c("Random","Square","Quad","EPI","SA")
+iwh_vec <- iwanthue(length(mlevs)-1)
 col_vec <- c("#000000",iwh_vec)
-shape_vec <- c(3,  ## random
-               16:19, ## non-EPI
-               21:24) ## EPI
-mlevs <- c("Random","Square","Grid","Peri","Quad","OldEPI","NewEPI","EPI3","EPI5")
 names(col_vec) <- mlevs
 names(shape_vec) <- mlevs
 
@@ -89,7 +99,8 @@ if (exists("exclude_methods")) {
 }
 col_vec <- col_vec[mlevs]
 shape_vec <- shape_vec[mlevs]
-lty_vec <- c("solid","11")[1+as.numeric(grepl("epi",mlevs,ignore.case=TRUE))]
+## solid for non-epi, dashed for EPI (includes SA)
+lty_vec <- c("solid","11")[1+as.numeric(grepl("epi|^sa$",mlevs,ignore.case=TRUE))]
 
 plot_list <- list()
 for (focal_n in unique(gg$n)) {
@@ -99,74 +110,47 @@ for (focal_n in unique(gg$n)) {
                 focal_var <- NULL
                 nval <- as.integer(as.character(focal_n))
                 resamp_str <- if (focal_resamp) "resample" else "no_resample"
-                fn <- sprintf("%S_SUPP_2_n%d_%s_%s_RR%1.1f.pdf",prefix,nval,resamp_str,response,focal_RR)
+                fn <- sprintf("%s_SUPP_2_n%d_%s_%s_RR%1.1f.pdf",prefix,nval,resamp_str,response,focal_RR)
                 ## COMMENT ME OUT!
                 ## focal_n <- 7; focal_RR <- 1; focal_resamp <- TRUE; response <- "prev"
                 ## focal_var <- "p_ratio"
                 gg3 <- mkfig(focal_n, focal_RR, focal_resamp, response, focal_var=NULL)
                 plot_list[[fn]] <- gg3
-                with(plot_size,ggsave(plot=gg3,filename=fn,height=height,width=width))
+                with(plot_size, ggsave(plot=gg3, path=figpath, filename=fn, height=height, width=width))
             }
         }
     }
 }
 
-if (FALSE) {
-blowup_fn <- "lancet_final_fig_2_n30_no_resample_rr_RR3.0.pdf"
-    gg4 <- mkfig(focal_n=30, focal_RR=3.0, focal_resamp=FALSE, response="prev", focal_var="p_ratio",
-                 point_alpha=0.1)
-    
-    g0 <- ggplot_build(gg4)$data
-    d_lens <- sapply(g0,nrow)
-    w <- which(d_lens>1 & d_lens!=nrow(data))
-    smooth_dat <- g0[[w]]
-
-    ## matplot(unique(smooth_dat$x),matrix(smooth_dat$y,ncol=9))
-    ## labpos <- ggmap::gglocator(9)
-    labpos <- structure(list(x = c(0.912812799756186, 1.22547836606249, 1.89027214296618, 
-                                   1.17083778165944, 0.135702266024018, 1.11316160923401, 1.17690895770423, 
-                                   1.00995161647271, 1.21030042595053), y = c(-1.62777596360761, 
-                                                                              -1.58815730164323, -1.56485185034025, -1.50775240803093, -1.38888760585497, 
-                                                                              -1.42268313117252, -1.56019072887949, -1.45997417030871, -1.46347017375794
-                                                                              )), row.names = c(NA, -9L), class = "data.frame")
-
-    ## random =1 ,
-    labpos2 <- data.frame(labpos, method=all_methods)
-
-    gg5 <- gg4 + geom_label(data=labpos2,aes(x=10^x,y=10^y,label=method,colour=method),show.legend=FALSE,cex=2,
-                            label.padding = unit(0.15, "lines"))
-
-}
-## not finished ...
-## ggsave("lancet_fig_12may2020_noshapes.pdf",height=6,width=6)
-
 ## new figure 1
 
 ### 
 ## exclude_methods <- c("EPI3","Grid")
-data <- all_MSE
+data <- gg_sum
 plot_size <- list(width=7,height=5)
 focal_RR <- 1.0
 do_resample <- FALSE
 plot_data <- filter(data,
                     ## response==resp,
                     RR==focal_RR,
-                    resample==do_resample)
+                    resamp==do_resample) %>%
+    mutate(across(n, ~as.numeric(as.character(.))))
 if (exists("exclude_methods")) {
     plot_data <- filter(plot_data, !method %in% exclude_methods)
 } else if (exists("include_methods")) {
     plot_data <- filter(plot_data, method %in% include_methods)
 }
 plot_data <- plot_data %>%
-    mutate_at("response",
+    mutate(across("response",
               ~factor(.,
                       levels=c("Prevalence","RR"),
                       labels=c("(a) estimating prevalence",
-                               "(b) estimating relative risk")))
+                               "(b) estimating relative risk"))))
+
 g1 <- (ggplot(plot_data,aes(n,mean,colour=method))
     + geom_point()
     + geom_line()
-    + geom_ribbon(aes(ymin=ymin,ymax=ymax,fill=method),
+    + geom_ribbon(aes(ymin=mean-stderr,ymax=mean+stderr,fill=method),
                   colour=NA,alpha=0.1)
     + scale_x_continuous(breaks=unique(plot_data$n))
     + scale_y_log10()
@@ -180,27 +164,27 @@ g1 <- (ggplot(plot_data,aes(n,mean,colour=method))
 )
 
 
-fn <- "lancet_final_fig_1.pdf"
-with(plot_size,ggsave(plot=g1,filename=fn,width=width,height=height))
+fn <- sprintf("%s_fig_1.pdf", prefix)
+with(plot_size,ggsave(plot=g1, filename=fn, path=figpath, width=width,height=height))
 
-exclude_methods <- c("EPI3","Grid")
+## figure 2
+
+## exclude_methods <- c("EPI3","Grid")
 focal_RR <- 1.0
 focal_resamp <- FALSE
-mlevs <- setdiff(all_methods,exclude_methods)
-iwh_vec <- setNames(c("#c77533","#8a66d3","#86a83c","#c85998","#60a16c",
-                      "#897bbf","#c8615d","#49afcf"), mlevs)
-col_vec <- setNames(c("#000000",iwh_vec),mlevs)
-shape_vec <- setNames(c(3,  ## random
-                        16:19, ## non-EPI
-                        21:24), ## EPI
-                      mlevs)
+mlevs <- all_methods
 
 plot_data <- (gg
     %>% filter(RR==focal_RR,resamp==focal_resamp)
-    %>% filter(!method %in%  exclude_methods)
     %>% mutate(method=factor(method,levels=mlevs)
              , epi=grepl("EPI",method))
 )
+
+if (exists("exclude_methods")) {
+    mlevs <- setdiff(mlevs, exclude_methods)
+    plot_data <- plot_data %>% filter(!method %in%  exclude_methods)
+
+}
 
 plot_data_long <- (plot_data
     %>% select(all_of(c("mse","mse.rr","true_mean",
@@ -248,11 +232,11 @@ gg1 <- (ggplot(plot_data_long, aes(true_mean, rmse,
                             )
 )
 
-fn <- "lancet_final_fig_2.pdf"
-with(plot_size,ggsave(plot=gg1,filename=fn,width=width,height=height))
+fn <- sprintf("%s_fig_2.pdf", prefix)
+with(plot_size,ggsave(plot=gg1, filename=fn, path=figpath, width=width,height=height))
 
-zipname <- sprintf("lancet_final_figs_%s.zip",format(Sys.time(),"%Y%m%d"))
-system(sprintf("zip  %s lancet_final_fig_*.pdf", zipname))
+zipname <- sprintf("%s_figs_%s.zip",prefix,format(Sys.time(),"%Y%m%d"))
+system(sprintf("zip  %s %s/%s_*.pdf", zipname, figpath, prefix))
 if (interactive()) {
     cat("copying to ms\n")
     system(sprintf("scp %s ms.mcmaster.ca:~/public_html/misc/",zipname))

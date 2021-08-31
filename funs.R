@@ -9,6 +9,11 @@ library(colorspace)
 library(cowplot)
 library(ggrepel)
 library(ggforce) ## facet_wrap_paginate
+library(hues)
+
+se_fun <- function(x) {
+    sd(x, na.rm=TRUE)/sqrt(length(na.omit(x)))
+}
 
 newnames <- c(`strip_epi-s1`="OldEPI strip",
               `arc_epi-s1`="OldEPI arc",`strip_epi-s3`="EPI3 strip",`arc_epi-s3`="EPI3 arc",
@@ -196,7 +201,8 @@ panel_names <- c("weight for age",
                  "disease probability ratio")
 
 
-all_methods <- c("Random","Square","Grid","Peri","Quad","OldEPI","NewEPI","EPI3","EPI5")
+## all_methods <- c("Random","Square","Grid","Peri","Quad","OldEPI","NewEPI","EPI3","EPI5")
+all_methods <- c("Random","Square","Quad","EPI", "SA")
 
 mkfig <- function(focal_n=7, focal_RR=1, focal_resamp=TRUE, response="prev",
                   focal_var=NULL,

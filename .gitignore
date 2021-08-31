@@ -1,2 +1,6 @@
 *~
 .*lock*
+figs/
+*.Rout
+*.rda
+*.zip

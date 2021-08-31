@@ -45,37 +45,30 @@ gg <- (map_dfr(c(TRUE,FALSE),
 ## gg %>% filter(RR==1,population=="vanilla-1", resamp==FALSE, n==7) %>% select(method,mse,p_ratio)
 
 gg2 <- (gg
-    %>% filter(!grepl("vanilla", population),   ## exclude vanilla pops: only non-resampled results
-               !resamp)
-    %>% select(RR, method, n, true_mean, mean, population)  ## choose variables to keep
+    ## exclude vanilla pops: only non-resampled results
+    %>% filter(!grepl("vanilla", population))
+    ## choose variables to keep
+    %>% select(RR, method, n, mse, mse.rr, resamp, population)  
 )
 
-## taking ratios first doesn't really make sense, but just trying it out ...
-gg2A <- gg2 %>% filter(method != "Random") %>% mutate(err = mean - true_mean) %>% select(-c(true_mean, mean))
-gg2B <- gg2 %>% filter(method == "Random") %>% mutate(rand_err = mean - true_mean) %>% select(-c(true_mean, mean, method))
-gg3 <- full_join(gg2A, gg2B, by = c("RR", "n", "population")) %>%
-    group_by(RR,method,n) %>%
-    summarise(mse = mean((err/rand_err)^2, na.rm= TRUE), .groups = "drop")
-
-
-
-gg4 <- (gg2
-    %>% group_by(RR, n, method)
-    ## -> 3000 rows (RR(4) x n(3) x method(5) x population(50)
-    %>% summarise(mse = mean((mean-true_mean)^2, na.rm=TRUE), .groups = "drop_last") ## compute MSE across populations
-    %>% mutate(mse_ratio = mse/mse[method=="Random"])
+gg_sum <- (gg2
+    %>% group_by(RR, n, population, resamp)
+    %>% transmute( ## get rid of mse/mse.rr !
+            method = method,
+            rmse = sqrt(mse)/sqrt(mse[method == "Random"]),
+            rmse.rr = sqrt(mse.rr)/sqrt(mse.rr[method == "Random"]))
+    ##
+    ## gg3 %>% filter(resamp==FALSE, n==7, RR==1, population == 0)
+    ##
     %>% filter(method != "Random")
+    %>% ungroup()
+    ## gg3 %>% filter(resamp==FALSE, n==7, RR==1) %>% pull(rmse) %>% range()
+    %>% select(-population)
+    %>% pivot_longer(-c(RR, method, n, resamp), names_to="response")
+    %>% group_by(RR, method, n, resamp, response)
+    %>% summarise(mean = mean(value, na.rm = TRUE), stderr = se_fun(value),
+                  .groups = "drop")
+    %>% mutate(across(response, ~ ifelse(.=="rmse", "Prevalence", "RR")))
 )
-gg4 %>% filter(RR==1, n== 7)
 
-
-gg0 <- gg %>% filter(RR==1) %>%
-    mutate(err = mean-true_mean,
-           abs_err = abs(err),
-           method = reorder(factor(method), X=abs_err, FUN = function(x) mean(x, na.rm=TRUE)))
-
-gg0 %>% group_by(method) %>% summarise(m = mean(abs_err))
-ggplot(gg0,
-       aes(x = method, y = err)) + facet_wrap(~n) + geom_boxplot()
-
-save("all_MSE","gg", file=out_file)
+save("all_MSE","gg", "gg_sum", file=out_file)
