@@ -166,7 +166,10 @@ get_partabs <- function(npops=50,
                 )
     }
     ## combine ...
-    nmvec <- c(0:(npops-n_vanilla-1),paste0("vanilla-",1:n_vanilla))
+    ## indexing of populations changed from 0- to 1-?
+    nmvec <- c(1:(npops-n_vanilla),paste0("vanilla-",1:n_vanilla))
+    pop_data <- mutate(pop_data, across(population, ~ gsub("non-varying", "vanilla", .)))
+    stopifnot(setequal(pop_data$population, nmvec))
     res <- (resList
         %>% setNames(nmvec)
         %>% bind_rows(.id="population")

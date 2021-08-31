@@ -31,42 +31,45 @@ L <- load("figs_dat.rda")
 prefix <- "intjepi"
 figpath <- "figs"
 
-# Figure 1: RMSE vs sample size
+# Figure 1: RMSE vs sample size (prevalence & RR faceted on same plot, as in Figure 1)
 
 data <- gg_sum %>% mutate(across(n, ~as.integer(as.character(.))))
 
 plot_size <- list(width=7,height=5)
-for (resp in c("Prevalence", "RR")) {
-    for (focal_RR in unique(data$RR)) {
-        for (do_resample in c(TRUE,FALSE)) {
-            resamp_str <- if (do_resample) "resample" else "no_resample"
-            fn <- sprintf("%s_SUPP_1_%s_RR%1.1f_%s.pdf",prefix,resp,focal_RR,resamp_str)
-                cat(fn,"\n")
-                plot_data <- filter(data, response==resp, RR==focal_RR,
-                                    resamp==do_resample)
-                if (exists("exclude_methods")) {
-                    plot_data <- filter(plot_data, !method %in% exclude_methods)
-                } else if (exists("include_methods")) {
-                    plot_data <- filter(plot_data, method %in% include_methods)
-                }
-                g1 <- (ggplot(plot_data,aes(n, mean, colour=method))
-                    + geom_point()
-                    + geom_line()
-                    + geom_ribbon(aes(ymin=mean-stderr,ymax=mean+stderr,fill=method),
-                                  colour=NA,alpha=0.1)
-                    + scale_x_continuous(breaks=unique(plot_data$n))
-                    + scale_y_log10()
-                    + colorspace::scale_colour_discrete_qualitative()
-                    + labs(x="sample size per cluster",y="relative RMSE")
-                    + geom_dl(aes(label=method),method=list(dl.trans(x = x + .3),cex=0.9,"last.bumpup"))
-                    + theme(legend.position="none")
-                    + expand_limits(x=32)
-                    + ggtitle(sprintf("%s: RR=%1.1f",resp,focal_RR))
-                )
-                with(plot_size, ggsave(plot=g1, filename=fn, path=figpath, width=width, height=height))
-            } ## do_resample
-        } ## focal_RR
-} ## resp
+for (focal_RR in unique(data$RR)) {
+    for (do_resample in c(TRUE,FALSE)) {
+        
+        resamp_str <- if (do_resample) "resample" else "no_resample"
+        ## fn <- sprintf("%s_SUPP_1_%s_RR%1.1f_%s.pdf",prefix,resp,focal_RR,resamp_str)
+        fn <- sprintf("%s_SUPP_1_RR%1.1f_%s.pdf",prefix,focal_RR,resamp_str)
+        cat(fn,"\n")
+        plot_data <- filter(data,
+                            RR==focal_RR,
+                            resamp==do_resample)
+        if (exists("exclude_methods")) {
+            plot_data <- filter(plot_data, !method %in% exclude_methods)
+        } else if (exists("include_methods")) {
+            plot_data <- filter(plot_data, method %in% include_methods)
+        }
+        g1 <- (ggplot(plot_data,aes(n, mean, colour=method))
+            + geom_point()
+            + geom_line()
+            + geom_ribbon(aes(ymin=mean-stderr,ymax=mean+stderr,fill=method),
+                          colour=NA,alpha=0.1)
+            + scale_x_continuous(breaks=unique(plot_data$n))
+            + scale_y_log10()
+            + colorspace::scale_colour_discrete_qualitative()
+            + labs(x="sample size per cluster",y="relative RMSE")
+            + geom_dl(aes(label=method),method=list(dl.trans(x = x + .3),cex=0.9,"last.bumpup"))
+            + theme(legend.position="none")
+            + expand_limits(x=36)
+            + ggtitle(sprintf("RR=%1.1f, %s",focal_RR, resamp_str))
+            + facet_wrap(~response, nrow=1)
+        )
+        
+        with(plot_size, ggsave(plot=g1, filename=fn, path=figpath, width=width, height=height))
+    } ## do_resample
+} ## focal_RR
 
 
 ## exclude_methods <- c("EPI3","Grid")
@@ -175,7 +178,7 @@ focal_resamp <- FALSE
 mlevs <- all_methods
 
 plot_data <- (gg
-    %>% filter(RR==focal_RR,resamp==focal_resamp)
+    %>% filter(RR==focal_RR, resamp==focal_resamp)
     %>% mutate(method=factor(method,levels=mlevs)
              , epi=grepl("EPI",method))
 )
@@ -187,7 +190,7 @@ if (exists("exclude_methods")) {
 }
 
 plot_data_long <- (plot_data
-    %>% select(all_of(c("mse","mse.rr","true_mean",
+    %>% select(all_of(c("mse","mse.rr","true_mean","p_ratio",
                         "method","epi","n")))
     %>% pivot_longer(cols=starts_with("mse"))
     %>% mutate_at("name",
@@ -234,6 +237,12 @@ gg1 <- (ggplot(plot_data_long, aes(true_mean, rmse,
 
 fn <- sprintf("%s_fig_2.pdf", prefix)
 with(plot_size,ggsave(plot=gg1, filename=fn, path=figpath, width=width,height=height))
+
+
+gg3 <- gg1 + aes(x=p_ratio) + labs(x="Probability ratio")
+
+fn <- sprintf("%s_fig_3.pdf", prefix)
+with(plot_size,ggsave(plot=gg3, filename=fn, path=figpath, width=width,height=height))
 
 zipname <- sprintf("%s_figs_%s.zip",prefix,format(Sys.time(),"%Y%m%d"))
 system(sprintf("zip  %s %s/%s_*.pdf", zipname, figpath, prefix))

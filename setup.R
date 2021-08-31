@@ -25,6 +25,7 @@ RR_vec <- unique(new_MSE$RR)
 gg <- (map_dfr(c(TRUE,FALSE),
               function(resamp) {
                   map_dfr(setNames(RR_vec,RR_vec),
+                          ## FIXME: hardcode npops elsewhere?
                           ~get_partabs(npops=53,
                                        fn=source_file,
                                        sub_names=FALSE,
@@ -44,14 +45,11 @@ gg <- (map_dfr(c(TRUE,FALSE),
 ## checking code: we do seem to have vanilla1 here ..
 ## gg %>% filter(RR==1,population=="vanilla-1", resamp==FALSE, n==7) %>% select(method,mse,p_ratio)
 
-gg2 <- (gg
-    ## exclude vanilla pops: only non-resampled results
-    %>% filter(!grepl("vanilla", population))
-    ## choose variables to keep
-    %>% select(RR, method, n, mse, mse.rr, resamp, population)  
-)
+## exclude vanilla pops: only non-resampled results
+gg <- gg %>% filter(!grepl("vanilla", population))
 
-gg_sum <- (gg2
+gg_sum <- (gg
+    %>% select(RR, method, n, mse, mse.rr, resamp, population)  
     %>% group_by(RR, n, population, resamp)
     %>% transmute( ## get rid of mse/mse.rr !
             method = method,
