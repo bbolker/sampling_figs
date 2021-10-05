@@ -38,7 +38,7 @@ data <- gg_sum %>% mutate(across(n, ~as.integer(as.character(.))))
 plot_size <- list(width=7,height=5)
 for (focal_RR in unique(data$RR)) {
     for (do_resample in c(TRUE,FALSE)) {
-        
+
         resamp_str <- if (do_resample) "resample" else "no_resample"
         ## fn <- sprintf("%s_SUPP_1_%s_RR%1.1f_%s.pdf",prefix,resp,focal_RR,resamp_str)
         fn <- sprintf("%s_SUPP_1_RR%1.1f_%s.pdf",prefix,focal_RR,resamp_str)
@@ -66,7 +66,7 @@ for (focal_RR in unique(data$RR)) {
             + ggtitle(sprintf("RR=%1.1f, %s",focal_RR, resamp_str))
             + facet_wrap(~response, nrow=1)
         )
-        
+
         with(plot_size, ggsave(plot=g1, filename=fn, path=figpath, width=width, height=height))
     } ## do_resample
 } ## focal_RR
@@ -127,7 +127,7 @@ for (focal_n in unique(gg$n)) {
 
 ## new figure 1
 
-### 
+###
 ## exclude_methods <- c("EPI3","Grid")
 data <- gg_sum
 plot_size <- list(width=7,height=5)
@@ -168,7 +168,10 @@ g1 <- (ggplot(plot_data,aes(n,mean,colour=method))
 
 
 fn <- sprintf("%s_fig_1.pdf", prefix)
-with(plot_size,ggsave(plot=g1, filename=fn, path=figpath, width=width,height=height))
+with(plot_size, ggsave(plot=g1, filename=fn, path=figpath, width=width, height=height))
+
+fn <- sprintf("%s_fig_1.tiff", prefix)
+with(plot_size, ggsave(plot=g1, dpi=300, filename=fn, path=figpath, width=width, height=height))
 
 ## figure 2
 
@@ -213,12 +216,12 @@ gg1 <- (ggplot(plot_data_long, aes(true_mean, rmse,
                           guide=guide_legend(reverse=TRUE)
                           )
     + facet_grid(response~n,scale="free_y",
-                 labeller =labeller(n=function(s) 
+                 labeller =labeller(n=function(s)
                      sprintf("n=%s per cluster",s),
                      response=function(s)
                          sprintf("RMSE when\nestimating\n%s",s)),
                  switch="y")
-    ## 
+    ##
     + theme(strip.placement = "outside",
             strip.text.y.left=element_text(angle=0),
             panel.spacing=grid::unit(0,"lines"))
@@ -237,6 +240,9 @@ gg1 <- (ggplot(plot_data_long, aes(true_mean, rmse,
 
 fn <- sprintf("%s_fig_2.pdf", prefix)
 with(plot_size,ggsave(plot=gg1, filename=fn, path=figpath, width=width,height=height))
+
+fn <- sprintf("%s_fig_2.tiff", prefix)
+with(plot_size,ggsave(plot=gg1, filename=fn, dpi=300, path=figpath, width=width,height=height))
 
 
 gg3 <- gg1 + aes(x=p_ratio) + labs(x="Probability ratio")

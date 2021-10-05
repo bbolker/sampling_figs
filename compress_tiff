@@ -1,0 +1,3 @@
+#! /bin/bash
+convert -compress lzw $1.tiff tmp.tiff
+mv tmp.tiff $1.tiff
